@@ -610,6 +610,6 @@ fig_ts <- fig_grey_1 + fig_nnet_1 + fig_stl_1 + fig_ets_1 + fig_arima_1 + fig_hy
 
 cowplot::plot_grid(fig_ts, fig_com, ncol = 1, rel_heights = c(3, 1))
 
-ggsave(filename = './fig/20220902_1.pdf',
+ggsave(filename = paste0('./fig/20220902_', disease_name[i],'.pdf'),
        width = 14, height = 15, family = "Times New Roman",
        limitsize = FALSE, device = cairo_pdf)
