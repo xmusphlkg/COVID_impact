@@ -19,17 +19,20 @@ library(Cairo)
 library(ggpubr)
 library(paletteer) 
 
+library(doParallel)
+
 set.seed(202208)
 
 # data load ---------------------------------------------------------------
 
 source('theme_set.R')
 
-datafile_manual <- read.xlsx('./data/df_load_202205.xlsx', sheet = "Sheet 1")
+datafile_manual <- read.xlsx('./data/df_load_20220902.xlsx', sheet = "Sheet 1")
 datafile_manual$date <- convertToDate(datafile_manual$date)
 
 datafile_analysis <- datafile_manual %>% 
-     filter(religion == '全国' & type == 'inci' & disease_1 != 'remove')
+     filter(religion == '全国' & type == 'inci' & disease_1 != 'remove') |> 
+     filter(date >= as.Date('2008/01/01'))
 
 split_date <- as.Date("2019/12/1")
 train_length <- 12*10
@@ -41,7 +44,7 @@ disease_list <- c('百日咳', '丙肝', '戊肝', '病毒性肝炎', '布病', 
                   '痢疾', '淋病', '流行性出血热', '流行性感冒',
                   '流行性腮腺炎', '麻疹', '梅毒', '疟疾', '其它感染性腹泻病',
                   '伤寒+副伤寒', '乙肝', '手足口病', '猩红热',
-                  '乙脑', '包虫病', '斑疹伤寒')
+                  '乙型脑炎', '包虫病', '斑疹伤寒')
 disease_name <- c('Pertussis', 'HCV', 'HEV','Viral hepatitis',
                   'Brucellosis', 'Dengue fever', 'Tuberculosis',
                   'Rubella', 'Acute hemorrhagic conjunctivitis', 'HAV',
@@ -295,77 +298,88 @@ auto_select_function <- function(i){
      
      # STL ---------------------------------------------------------------------
      
-     outcome <- stlf(ts_train_1, lambda=0, h=test_length)
+     outcome <- tryCatch(stlf(ts_train_1, lambda=0, h=test_length), error = function(e) NULL)
+     stl_outcome <- outcome
      
-     outcome_plot_1 <- data.frame(
-          date = zoo::as.Date(time(outcome$x)),
-          simu = as.numeric(as.matrix(outcome$x)),
-          fit = as.numeric(as.matrix(outcome$fitted))
-     )
-     outcome_plot_2 <- data.frame(
-          date = zoo::as.Date(time(outcome$mean)),
-          mean = as.matrix(outcome$mean),
-          lower_80 = as.matrix(outcome$lower[,1]),
-          lower_95 = as.matrix(outcome$lower[,2]),
-          upper_80 = as.matrix(outcome$upper[,1]),
-          upper_95 = as.matrix(outcome$upper[,2])
-     )
-     
-     outcome_plot_1_2_link <- data.frame(
-          date = c(max(outcome_plot_1$date), min(outcome_plot_2$date)),
-          value = c(outcome_plot_1[nrow(outcome_plot_1), 'fit'],
-                    outcome_plot_2[1, 'mean'])
-     )
-     
-     max_value <- max(c(max(outcome_plot_1[,-1]), max(outcome_plot_2[,-1])))
-     min_value <- min(c(min(outcome_plot_1[,-1]), min(outcome_plot_2[,-1])))
-     
-     fit_goodness <- fit_goodness |> 
-          rbind(
-               data.frame(
-                    Method = 'STL',
-                    Train = func_rmse(outcome_plot_1$simu, outcome_plot_1$fit),
-                    Test = func_rmse(ts_test_1, outcome_plot_2$mean))
+     if(is.null(outcome)){
+          fig_stl_1 <- ggplot()+
+               theme_set()+
+               theme(legend.position = 'bottom')+
+               labs(x = "Date",
+                    y = 'Cases',
+                    color = '',
+                    title = paste0(LETTERS[3], ': ', "STL"))
+     } else {
+          outcome_plot_1 <- data.frame(
+               date = zoo::as.Date(time(outcome$x)),
+               simu = as.numeric(as.matrix(outcome$x)),
+               fit = as.numeric(as.matrix(outcome$fitted))
           )
-     
-     fig1 <- ggplot()+
-          geom_line(mapping = aes(x = date, y = value, colour = 'Observed'), 
-                    size = 0.7, data = filter(datafile_single, date <= split_date))+
-          geom_line(mapping = aes(x = date, y = fit, colour = 'Fitted'), 
-                    size = 0.7, data = outcome_plot_1)+
-          geom_line(mapping = aes(x = date, y = value), color = '#DC0000B2', 
-                    size = 0.7, data = outcome_plot_1_2_link, show.legend = F)+
-          geom_line(mapping = aes(x = date, y = mean, colour = 'Forecasted'),
-                    size = 0.7, data = outcome_plot_2)+
-          geom_ribbon(mapping = aes(x = date, ymin = lower_80, ymax = upper_80, fill = 'red'),
-                      data = outcome_plot_2, alpha = 0.3, show.legend = F)+
-          geom_ribbon(mapping = aes(x = date, ymin = lower_95, ymax = upper_95, fill = 'red'),
-                      data = outcome_plot_2, alpha = 0.3, show.legend = F)+
-          geom_vline(xintercept = max(outcome_plot_1_2_link$date), show.legend = F,
-                     linetype = 'longdash')+
-          geom_hline(yintercept = 0, show.legend = F)+
-          annotate('text', x = median(outcome_plot_1$date), y = Inf, label = 'Train Database', vjust = 1)+
-          annotate('text', x = median(outcome_plot_2$date), y = Inf, label = 'Test Database', vjust = 1)+
-          coord_cartesian(ylim = c(0, NA))+
-          scale_x_date(expand = expansion(add = c(0, 31)),
-                       date_labels = '%Y',
-                       breaks = seq(min(outcome_plot_1$date), max(outcome_plot_2$date)+31, by="2 years"))+
-          scale_y_continuous(expand = c(0, 0),
-                             breaks = pretty(c(min_value, max_value, 0)),
-                             limits = range(pretty(c(min_value, max_value, 0))))+
-          scale_color_manual(
-               values = c(Fitted = "#00A087B2",
-                          Forecasted = "#DC0000B2",
-                          Observed = '#3C5488B2')
-          )+
-          theme_set()+
-          theme(legend.position = 'bottom')+
-          labs(x = "Date",
-               y = 'Cases',
-               color = '',
-               title = paste0(LETTERS[3], ': ', "STL"))
-     
-     fig_stl_1 <- fig1
+          outcome_plot_2 <- data.frame(
+               date = zoo::as.Date(time(outcome$mean)),
+               mean = as.matrix(outcome$mean),
+               lower_80 = as.matrix(outcome$lower[,1]),
+               lower_95 = as.matrix(outcome$lower[,2]),
+               upper_80 = as.matrix(outcome$upper[,1]),
+               upper_95 = as.matrix(outcome$upper[,2])
+          )
+          
+          outcome_plot_1_2_link <- data.frame(
+               date = c(max(outcome_plot_1$date), min(outcome_plot_2$date)),
+               value = c(outcome_plot_1[nrow(outcome_plot_1), 'fit'],
+                         outcome_plot_2[1, 'mean'])
+          )
+          
+          max_value <- max(c(max(outcome_plot_1[,-1]), max(outcome_plot_2[,-1])))
+          min_value <- min(c(min(outcome_plot_1[,-1]), min(outcome_plot_2[,-1])))
+          
+          fit_goodness <- fit_goodness |> 
+               rbind(
+                    data.frame(
+                         Method = 'STL',
+                         Train = func_rmse(outcome_plot_1$simu, outcome_plot_1$fit),
+                         Test = func_rmse(ts_test_1, outcome_plot_2$mean))
+               )
+          
+          fig1 <- ggplot()+
+               geom_line(mapping = aes(x = date, y = value, colour = 'Observed'), 
+                         size = 0.7, data = filter(datafile_single, date <= split_date))+
+               geom_line(mapping = aes(x = date, y = fit, colour = 'Fitted'), 
+                         size = 0.7, data = outcome_plot_1)+
+               geom_line(mapping = aes(x = date, y = value), color = '#DC0000B2', 
+                         size = 0.7, data = outcome_plot_1_2_link, show.legend = F)+
+               geom_line(mapping = aes(x = date, y = mean, colour = 'Forecasted'),
+                         size = 0.7, data = outcome_plot_2)+
+               geom_ribbon(mapping = aes(x = date, ymin = lower_80, ymax = upper_80, fill = 'red'),
+                           data = outcome_plot_2, alpha = 0.3, show.legend = F)+
+               geom_ribbon(mapping = aes(x = date, ymin = lower_95, ymax = upper_95, fill = 'red'),
+                           data = outcome_plot_2, alpha = 0.3, show.legend = F)+
+               geom_vline(xintercept = max(outcome_plot_1_2_link$date), show.legend = F,
+                          linetype = 'longdash')+
+               geom_hline(yintercept = 0, show.legend = F)+
+               annotate('text', x = median(outcome_plot_1$date), y = Inf, label = 'Train Database', vjust = 1)+
+               annotate('text', x = median(outcome_plot_2$date), y = Inf, label = 'Test Database', vjust = 1)+
+               coord_cartesian(ylim = c(0, NA))+
+               scale_x_date(expand = expansion(add = c(0, 31)),
+                            date_labels = '%Y',
+                            breaks = seq(min(outcome_plot_1$date), max(outcome_plot_2$date)+31, by="2 years"))+
+               scale_y_continuous(expand = c(0, 0),
+                                  breaks = pretty(c(min_value, max_value, 0)),
+                                  limits = range(pretty(c(min_value, max_value, 0))))+
+               scale_color_manual(
+                    values = c(Fitted = "#00A087B2",
+                               Forecasted = "#DC0000B2",
+                               Observed = '#3C5488B2')
+               )+
+               theme_set()+
+               theme(legend.position = 'bottom')+
+               labs(x = "Date",
+                    y = 'Cases',
+                    color = '',
+                    title = paste0(LETTERS[3], ': ', "STL"))
+          
+          fig_stl_1 <- fig1
+     }
      
      # ETS ---------------------------------------------------------------------
      
@@ -445,7 +459,7 @@ auto_select_function <- function(i){
      
      mods <- data.frame(ARIMA = forecast(mod, h = test_length)$mean,
                         ETS = forecast(ets(ts_train_1), h=test_length)$mean,
-                        STL = stlf(ts_train_1, lambda=0, h=test_length)$mean)
+                        STL = as.numeric(if (is.null(stl_outcome)) NA else stlf(ts_train_1, lambda=0, h=test_length)$mean))
      # mods$value <- as.matrix(ts_test_1)
      
      mod7 <- hybridModel(ts_train_1, 
@@ -537,8 +551,8 @@ auto_select_function <- function(i){
           date = seq.Date(as.Date('2018/01/01'), by = 'month', length.out = test_length)
      )
      
-     max_value <- max(df_mods[,-7], datafile_single$value)
-     min_value <- min(df_mods[,-7], datafile_single$value)
+     max_value <- max(df_mods[,-7], datafile_single$value, na.rm = T)
+     min_value <- min(df_mods[,-7], datafile_single$value, na.rm = T)
      
      names(fill_color) <- c('Observed', 'Grey Model', 'Neural Network',
                             'STL', 'ETS', 'SARIMA', 'Hybrid')
@@ -594,7 +608,7 @@ auto_select_function <- function(i){
      table <- ggtexttable(datafile_table,
                           rows = NULL,
                           theme = ttheme("blank", base_size = 10, padding = unit(c(5, 5), "mm"))) |>
-          tab_add_hline(at.row = 7, row.side = "bottom", linewidth = 1) |>
+          tab_add_hline(at.row = nrow(datafile_table)+1, row.side = "bottom", linewidth = 1) |>
           tab_add_hline(at.row = 1:2, row.side = "top", linewidth = 2) |> 
           tab_add_title(LETTERS[8], face = "bold", size = 14) |> 
           tab_add_footnote('*Hybrid: Combined SARIMA, ETS,\nSTL and Neural Network model', 
@@ -616,4 +630,41 @@ auto_select_function <- function(i){
             limitsize = FALSE, device = cairo_pdf)
 }
 
-auto_select_function(i)
+# run model ---------------------------------------------------------------
+
+i <- 6
+# lapply(1:26, auto_select_function)
+# auto_select_function(6)
+
+cl <- makeCluster(20)
+registerDoParallel(cl)
+clusterEvalQ(cl, {
+     library(tidyverse)
+     library(stats)
+     library(tseries)
+     library(astsa)
+     library(forecast)
+     library(greyforecasting)
+     # library(opera)
+     library(forecastHybrid)
+     
+     # loadfonts("pdf")
+     library(patchwork)
+     library(Cairo)
+     library(ggpubr)
+     library(paletteer) 
+     set.seed(202208)
+     
+     
+     split_date <- as.Date("2019/12/1")
+     train_length <- 12*10
+     test_length <- 12*2
+     forcast_length <- 12+12+5
+})
+
+clusterExport(cl, c('datafile_analysis', 'disease_list', 'disease_name', 
+                    'fill_color', 'func_rmse', 'theme_set'), 
+              envir = environment())
+parLapply(cl, 21:26, auto_select_function)
+stopCluster(cl)
+

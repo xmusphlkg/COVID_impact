@@ -2,7 +2,7 @@ library(lubridate)
 library(extrafont)
 library(RColorBrewer)
 
-suppressWarnings(font_import(pattern = "times", prompt = F))
+# suppressWarnings(font_import(pattern = "times", prompt = F))
 
 
 theme_set <- function(){
