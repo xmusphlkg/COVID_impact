@@ -39,24 +39,24 @@ train_length <- 12*10
 test_length <- 12*2
 forcast_length <- 12+12+5
 
-disease_list <- c('百日咳', '丙肝', '戊肝', '病毒性肝炎', '布病', '登革热', 
+disease_list <- c('百日咳', '丙肝', '戊肝', '布病', '登革热', 
                   '肺结核', '风疹', '急性出血性结膜炎', '甲肝', 
-                  '痢疾', '淋病', '流行性出血热', '流行性感冒',
+                  '痢疾', '淋病', '流行性出血热', '艾滋病',
                   '流行性腮腺炎', '麻疹', '梅毒', '疟疾', '其它感染性腹泻病',
                   '伤寒+副伤寒', '乙肝', '手足口病', '猩红热',
                   '乙型脑炎', '包虫病', '斑疹伤寒')
-disease_name <- c('Pertussis', 'HCV', 'HEV','Viral hepatitis',
+disease_name <- c('Pertussis', 'HCV', 'HEV',
                   'Brucellosis', 'Dengue fever', 'Tuberculosis',
                   'Rubella', 'Acute hemorrhagic conjunctivitis', 'HAV',
                   'Dysentery', 'Gonorrhea', 'HFRS',
-                  'Influenza', 'Mumps', 'Measles',
+                  'AIDS', 'Mumps', 'Measles',
                   'Syphilis', 'Malaria', 'Other infectious diarrhea',
                   'Typhoid fever and paratyphoid fever', 'HBV', 'HFMD',
                   'scarlet fever', 'Japanese encephalitis', 'Hydatidosis', 'Typhus')
 
 # data clean --------------------------------------------------------------
 
-i <- 22
+i <- 5
 
 auto_select_function <- function(i){
      datafile_single <- datafile_analysis %>% 
@@ -78,6 +78,8 @@ auto_select_function <- function(i){
           unique() %>% 
           filter(date <= split_date)%>% 
           select(value)
+     
+     max_case <- max(df_simu)
      
      ts_obse_1 <- df_simu %>% 
           ts(frequency = 12,
@@ -112,13 +114,14 @@ auto_select_function <- function(i){
                     outcome_plot_2[1, 'mean'])
      )
      
-     max_value <- max(c(max(outcome_plot_1[,-1]), max(outcome_plot_2[,-1])))
+     max_value <- max(c(max(outcome_plot_1[,-1]), max(outcome_plot_2[,-1])), max_case)
      min_value <- min(c(min(outcome_plot_1[,-1]), min(outcome_plot_2[,-1])))
      
      fit_goodness <- data.frame(
           Method = 'SARIMA',
           Train = func_rmse(outcome_plot_1$simu, outcome_plot_1$fit),
-          Test = func_rmse(ts_test_1, outcome_plot_2$mean)
+          Test = func_rmse(ts_test_1, outcome_plot_2$mean),
+          'Train and Test' = func_rmse(ts_obse_1, c(outcome_plot_1$fit, outcome_plot_2$mean))
      )
      
      fig1 <- ggplot()+
@@ -180,7 +183,7 @@ auto_select_function <- function(i){
                     outcome_plot_2[1, 'mean'])
      )
      
-     max_value <- max(c(max(outcome_plot_1[,-1]), max(outcome_plot_2[,-1])))
+     max_value <- max(c(max(outcome_plot_1[,-1]), max(outcome_plot_2[,-1])), max_case)
      min_value <- min(c(min(outcome_plot_1[,-1]), min(outcome_plot_2[,-1])))
      
      fit_goodness <- fit_goodness |> 
@@ -188,7 +191,8 @@ auto_select_function <- function(i){
                data.frame(
                     Method = 'Grey Model',
                     Train = func_rmse(outcome_plot_1$simu, outcome_plot_1$fit),
-                    Test = func_rmse(ts_test_1, outcome_plot_2$mean)
+                    Test = func_rmse(ts_test_1, outcome_plot_2$mean),
+                    'Train and Test' = func_rmse(ts_obse_1, c(outcome_plot_1$fit, outcome_plot_2$mean))
                )
           )
      
@@ -249,7 +253,7 @@ auto_select_function <- function(i){
                     outcome_plot_2[1, 'mean'])
      )
      
-     max_value <- max(c(max(outcome_plot_1[,-1], na.rm = T), max(outcome_plot_2[,-1], na.rm = T)))
+     max_value <- max(c(max(outcome_plot_1[,-1], na.rm = T), max(outcome_plot_2[,-1], na.rm = T)), max_case)
      min_value <- min(c(min(outcome_plot_1[,-1], na.rm = T), min(outcome_plot_2[,-1], na.rm = T)))
      
      fit_goodness <- fit_goodness |> 
@@ -257,7 +261,8 @@ auto_select_function <- function(i){
                data.frame(
                     Method = 'Neural Network',
                     Train = func_rmse(outcome_plot_1$simu, outcome_plot_1$fit),
-                    Test = func_rmse(ts_test_1, outcome_plot_2$mean))
+                    Test = func_rmse(ts_test_1, outcome_plot_2$mean),
+                    'Train and Test' = func_rmse(ts_obse_1, c(outcome_plot_1$fit, outcome_plot_2$mean)))
           )
      
      fig1 <- ggplot()+
@@ -330,7 +335,7 @@ auto_select_function <- function(i){
                          outcome_plot_2[1, 'mean'])
           )
           
-          max_value <- max(c(max(outcome_plot_1[,-1]), max(outcome_plot_2[,-1])))
+          max_value <- max(c(max(outcome_plot_1[,-1]), max(outcome_plot_2[,-1])), max_case)
           min_value <- min(c(min(outcome_plot_1[,-1]), min(outcome_plot_2[,-1])))
           
           fit_goodness <- fit_goodness |> 
@@ -338,7 +343,8 @@ auto_select_function <- function(i){
                     data.frame(
                          Method = 'STL',
                          Train = func_rmse(outcome_plot_1$simu, outcome_plot_1$fit),
-                         Test = func_rmse(ts_test_1, outcome_plot_2$mean))
+                         Test = func_rmse(ts_test_1, outcome_plot_2$mean),
+                         'Train and Test' = func_rmse(ts_obse_1, c(outcome_plot_1$fit, outcome_plot_2$mean)))
                )
           
           fig1 <- ggplot()+
@@ -405,7 +411,7 @@ auto_select_function <- function(i){
                     outcome_plot_2[1, 'mean'])
      )
      
-     max_value <- max(c(max(outcome_plot_1[,-1]), max(outcome_plot_2[,-1])))
+     max_value <- max(c(max(outcome_plot_1[,-1]), max(outcome_plot_2[,-1])), max_case)
      min_value <- min(c(min(outcome_plot_1[,-1]), min(outcome_plot_2[,-1])))
      
      fit_goodness <- fit_goodness |> 
@@ -413,7 +419,8 @@ auto_select_function <- function(i){
                data.frame(
                     Method = 'ETS',
                     Train = func_rmse(outcome_plot_1$simu, outcome_plot_1$fit),
-                    Test = func_rmse(ts_test_1, outcome_plot_2$mean))
+                    Test = func_rmse(ts_test_1, outcome_plot_2$mean),
+                    'Train and Test' = func_rmse(ts_obse_1, c(outcome_plot_1$fit, outcome_plot_2$mean)))
           )
      
      fig1 <- ggplot()+
@@ -463,9 +470,9 @@ auto_select_function <- function(i){
      # mods$value <- as.matrix(ts_test_1)
      
      mod7 <- hybridModel(ts_train_1, 
-                         models = c('a', 'e', 's', 'n'),
+                         models = c('aesn'),
                          a.args = list(seasonal = T),
-                         weights="insample", parallel=TRUE, num.cores = 10)
+                         weights="equal", parallel=TRUE, num.cores = 10)
      outcome <- forecast(mod7, h = test_length)
      
      outcome_plot_1 <- data.frame(
@@ -488,7 +495,7 @@ auto_select_function <- function(i){
                     outcome_plot_2[1, 'mean'])
      )
      
-     max_value <- max(c(max(outcome_plot_1[,-1], na.rm = T), max(outcome_plot_2[,-1], na.rm = T)))
+     max_value <- max(c(max(outcome_plot_1[,-1], na.rm = T), max(outcome_plot_2[,-1], na.rm = T)), max_case)
      min_value <- min(c(min(outcome_plot_1[,-1], na.rm = T), min(outcome_plot_2[,-1], na.rm = T)))
      
      fit_goodness <- fit_goodness |> 
@@ -496,7 +503,8 @@ auto_select_function <- function(i){
                data.frame(
                     Method = 'Hybrid',
                     Train = func_rmse(outcome_plot_1$simu, outcome_plot_1$fit),
-                    Test = func_rmse(ts_test_1, outcome_plot_2$mean))
+                    Test = func_rmse(ts_test_1, outcome_plot_2$mean),
+                    'Train and Test' = func_rmse(ts_obse_1, c(outcome_plot_1$fit, outcome_plot_2$mean)))
           )
      
      fig1 <- ggplot()+
@@ -551,7 +559,7 @@ auto_select_function <- function(i){
           date = seq.Date(as.Date('2018/01/01'), by = 'month', length.out = test_length)
      )
      
-     max_value <- max(df_mods[,-7], datafile_single$value, na.rm = T)
+     max_value <- max(df_mods[,-7], datafile_single$value, max_case, na.rm = T)
      min_value <- min(df_mods[,-7], datafile_single$value, na.rm = T)
      
      names(fill_color) <- c('Observed', 'Grey Model', 'Neural Network',
@@ -601,20 +609,22 @@ auto_select_function <- function(i){
                                  labels = c('Grey Model', 'Neural Network', 'STL',
                                             'ETS', 'SARIMA', 'Hybrid*')),
                  Train = round(Train),
-                 Test = round(Test)) |> 
+                 Test = round(Test),
+                 Train.and.Test = round(Train.and.Test)) |> 
           arrange(Method)
      datafile_table[is.na(datafile_table)] <- ""
      
      table <- ggtexttable(datafile_table,
                           rows = NULL,
+                          cols = c('Method', 'Train', 'Test', 'Train and Test'),
                           theme = ttheme("blank", base_size = 10, padding = unit(c(5, 5), "mm"))) |>
           tab_add_hline(at.row = nrow(datafile_table)+1, row.side = "bottom", linewidth = 1) |>
           tab_add_hline(at.row = 1:2, row.side = "top", linewidth = 2) |> 
           tab_add_title(LETTERS[8], face = "bold", size = 14) |> 
-          tab_add_footnote('*Hybrid: Combined SARIMA, ETS,\nSTL and Neural Network model', 
+          tab_add_footnote('*Hybrid: Combined SARIMA, ETS, STL\nand Neural Network model', 
                            just = "left",hjust = 1,size = 10)
      
-     fig_com <- fig1 + table + plot_layout(widths = c(2, 1))
+     fig_com <- fig1 + table + plot_layout(widths = c(1.7, 1))
      
      # save --------------------------------------------------------------------
      
@@ -628,6 +638,9 @@ auto_select_function <- function(i){
      ggsave(filename = paste0('./fig/20220902_', disease_name[i],'.pdf'),
             width = 14, height = 15, family = "Times New Roman",
             limitsize = FALSE, device = cairo_pdf)
+     fit_goodness$disease <- disease_name[i]
+     
+     return(fit_goodness)
 }
 
 # run model ---------------------------------------------------------------
@@ -636,7 +649,7 @@ i <- 6
 # lapply(1:26, auto_select_function)
 # auto_select_function(6)
 
-cl <- makeCluster(20)
+cl <- makeCluster(10)
 registerDoParallel(cl)
 clusterEvalQ(cl, {
      library(tidyverse)
@@ -665,6 +678,9 @@ clusterEvalQ(cl, {
 clusterExport(cl, c('datafile_analysis', 'disease_list', 'disease_name', 
                     'fill_color', 'func_rmse', 'theme_set'), 
               envir = environment())
-parLapply(cl, 21:26, auto_select_function)
+outcome <- parLapply(cl, 1:25, auto_select_function)
 stopCluster(cl)
+
+datafile_outcome <- do.call('rbind', outcome)
+write.xlsx(datafile_outcome, './outcome/model_select.xlsx')
 
