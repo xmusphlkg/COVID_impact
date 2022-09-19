@@ -635,7 +635,7 @@ auto_select_function <- function(i){
      
      cowplot::plot_grid(fig_ts, fig_com, ncol = 1, rel_heights = c(3, 1))
      
-     ggsave(filename = paste0('./fig/20220902_', disease_name[i],'.pdf'),
+     ggsave(filename = paste0('./fig/20220907/A_', disease_name[i],'.pdf'),
             width = 14, height = 15, family = "Times New Roman",
             limitsize = FALSE, device = cairo_pdf)
      fit_goodness$disease <- disease_name[i]
@@ -682,5 +682,5 @@ outcome <- parLapply(cl, 1:25, auto_select_function)
 stopCluster(cl)
 
 datafile_outcome <- do.call('rbind', outcome)
-write.xlsx(datafile_outcome, './outcome/model_select.xlsx')
+write.xlsx(datafile_outcome, './outcome/model_select_A.xlsx')
 

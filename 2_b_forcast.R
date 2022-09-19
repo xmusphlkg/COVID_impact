@@ -34,14 +34,21 @@ datafile_analysis <- datafile_manual %>%
      filter(religion == '全国' & type == 'inci' & disease_1 != 'remove') |> 
      filter(date >= as.Date('2008/01/01'))
 
-datafile_class <- read.xlsx('./outcome/model_select.xlsx') |> 
-     filter(!is.na(BestMethod)) |> 
-     arrange(Class, Method)
+datafile_class <- read.xlsx('./data/disease_class.xlsx')
+
+datafile_class <- read.xlsx('./data/model_select_A.xlsx') |> 
+     filter(!is.na(best_Method)) |> 
+     left_join(datafile_class, by = c(disease = 'diseasename')) |> 
+     arrange(class, best_Method)
 datafile_class$id <- 1:nrow(datafile_class)
 
 split_date <- as.Date("2019/12/1")
-train_length <- 12*10
-test_length <- 12*2
+# train_length <- 12*10
+# test_length <- 12*2
+# forcast_length <- test_length+12+12+5
+
+train_length <- 12*12
+test_length <- 0
 forcast_length <- test_length+12+12+5
 
 disease_list <- c('百日咳', '丙肝', '戊肝', '布病', '登革热', 
@@ -62,11 +69,11 @@ disease_name <- c('Pertussis', 'HCV', 'HEV',
 datafile_class <- data.frame(disease_list = disease_list,
                              disease_name = disease_name) |> 
      right_join(datafile_class, by = c('disease_name' = 'disease')) |> 
-     arrange(Class, Method)
+     arrange(class, Method)
 
 # data clean --------------------------------------------------------------
 
-# i <- 2
+i <- 7
 
 auto_analysis_function <- function(i){
      datafile_single <- datafile_analysis %>% 
@@ -95,7 +102,7 @@ auto_analysis_function <- function(i){
                        as.numeric(format(min(datafile_single$date), "%m"))))
      
      ts_train_1 <- head(ts_obse_1, train_length)
-     ts_test_1 <- tail(ts_obse_1, test_length)
+     # ts_test_1 <- tail(ts_obse_1, test_length)
      
      
      outcome_plot_1 <- datafile_single |> 
@@ -204,6 +211,9 @@ auto_analysis_function <- function(i){
      outcome_plot_2 <- outcome_plot_2 |> 
           mutate_at(vars(contains('er')), as.numeric)
      
+     write.xlsx(full_join(outcome_plot_2, outcome_plot_1),
+                paste0('./outcome/simulate data/A_', datafile_class$disease_name[i], '.xlsx'))
+     
      fig1 <- ggplot()+
           geom_line(mapping = aes(x = date, y = value, colour = 'Observed'), 
                     size = 0.7, data = outcome_plot_1)+
@@ -213,16 +223,16 @@ auto_analysis_function <- function(i){
                       data = outcome_plot_2, alpha = 0.3, show.legend = F)+
           geom_ribbon(mapping = aes(x = date, ymin = lower_95, ymax = upper_95, fill = 'red'),
                       data = outcome_plot_2, alpha = 0.3, show.legend = F)+
-          annotate('text', x = median(head(outcome_plot_1$date, 12)), y = Inf, 
-                   label = paste0(diff_value_1, '\n(', sprintf('%.1f', diff_label_1), '%)'),
-                   color = ifelse(diff_value_1 > 0, 'red', '#019875FF'),
-                   vjust = 1.1,
-                   size = 6)+
-          annotate('text', x = median(tail(outcome_plot_1$date, 17)), y = Inf, 
-                   label = paste0(diff_value_2, '\n(', sprintf('%.1f', diff_label_2), '%)'),
-                   color = ifelse(diff_value_2 > 0, 'red', '#019875FF'),
-                   vjust = 1.1,
-                   size = 6)+
+          # annotate('text', x = median(head(outcome_plot_1$date, 12)), y = Inf, 
+          #          label = paste0(diff_value_1, '\n(', sprintf('%.1f', diff_label_1), '%)'),
+          #          color = ifelse(diff_value_1 > 0, 'red', '#019875FF'),
+          #          vjust = 1.1,
+          #          size = 6)+
+          # annotate('text', x = median(tail(outcome_plot_1$date, 17)), y = Inf, 
+          #          label = paste0(diff_value_2, '\n(', sprintf('%.1f', diff_label_2), '%)'),
+          #          color = ifelse(diff_value_2 > 0, 'red', '#019875FF'),
+          #          vjust = 1.1,
+          #          size = 6)+
           geom_vline(xintercept = as.Date('2020/12/15'), show.legend = F,
                      linetype = 'longdash')+
           coord_cartesian(ylim = c(0, NA))+
@@ -247,12 +257,13 @@ auto_analysis_function <- function(i){
 
 i <- 3
 # lapply(1:26, auto_select_function)
-auto_analysis_function(3)
+auto_analysis_function(23)
 
 cl <- makeCluster(12)
 registerDoParallel(cl)
 clusterEvalQ(cl, {
      library(tidyverse)
+     library(openxlsx)
      library(stats)
      library(tseries)
      library(astsa)
@@ -279,7 +290,7 @@ stopCluster(cl)
 
 plot <- do.call(wrap_plots, outcome)
 
-ggsave('./fig/20220903_COVID_impact.pdf', 
+ggsave('./fig/20220916_COVID_impact.pdf', 
        plot + plot_layout(ncol = 5, guides = 'collect')&
             theme(legend.position = 'bottom'),
        family = "Times New Roman",
