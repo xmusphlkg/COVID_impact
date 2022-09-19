@@ -290,7 +290,7 @@ stopCluster(cl)
 
 plot <- do.call(wrap_plots, outcome)
 
-ggsave('./fig/20220916_COVID_impact.pdf', 
+ggsave('./fig/20220919_COVID_impact.pdf', 
        plot + plot_layout(ncol = 5, guides = 'collect')&
             theme(legend.position = 'bottom'),
        family = "Times New Roman",

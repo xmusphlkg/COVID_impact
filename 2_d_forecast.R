@@ -76,14 +76,14 @@ datafile_class_B <- data.frame(disease_list = disease_list,
      arrange(class, Method)
 
 split_date <- as.Date("2019/12/1")
-train_length <- 12*10
-test_length <- 12*2
+train_length <- 12*12
+test_length <- 0
 forcast_length <- test_length+12+12+5+12*3
 date_value <- seq.Date(as.Date('2022-6-1'), as.Date('2025-5-1'), 'month')
 
 # data clean --------------------------------------------------------------
 
-i <- 16
+i <- 15
 
 auto_analysis_function <- function(i){
      datafile_single <- datafile_analysis %>% 
@@ -120,7 +120,7 @@ auto_analysis_function <- function(i){
                        as.numeric(format(min(datafile_single$date), "%m"))))
      
      ts_train_A <- head(ts_obse_A, train_length)
-     ts_test_A <- tail(ts_obse_A, test_length)
+     # ts_test_A <- tail(ts_obse_A, test_length)
      ts_train_B <- ts_obse_B
      
      # Select Method ------------------------------------------------------------
@@ -329,11 +329,11 @@ auto_analysis_function <- function(i){
                     size = 0.7, data = outcome_plot_3)+
           geom_ribbon(mapping = aes(x = date, ymin = lower_95, ymax = upper_95, fill = '#3C5488B2'),
                       data = outcome_plot_3, alpha = 0.3, show.legend = F)+
-          annotate('text', x = median(outcome_plot_2$date, 12), y = Inf, 
-                   label = paste0(diff_value_1, '\n(', sprintf('%.1f', diff_label_1), '%)'),
-                   color = ifelse(diff_value_1 > 0, 'red', '#019875FF'),
-                   vjust = 1.1,
-                   size = 6)+
+          # annotate('text', x = median(outcome_plot_2$date, 12), y = Inf, 
+          #          label = paste0(diff_value_1, '\n(', sprintf('%.1f', diff_label_1), '%)'),
+          #          color = ifelse(diff_value_1 > 0, 'red', '#019875FF'),
+          #          vjust = 1.1,
+          #          size = 6)+
           coord_cartesian(ylim = c(0, NA))+
           scale_x_date(expand = expansion(add = c(0, 31)),
                        date_labels = '%Y',
@@ -357,7 +357,7 @@ auto_analysis_function <- function(i){
 
 i <- 16
 # lapply(1:26, auto_select_function)
-auto_analysis_function(16)
+auto_analysis_function(7)
 
 cl <- makeCluster(12)
 registerDoParallel(cl)
@@ -390,7 +390,7 @@ stopCluster(cl)
 
 plot <- do.call(wrap_plots, outcome)
 
-ggsave('./fig/20220908_COVID_simulate.pdf', 
+ggsave('./fig/20220919_COVID_simulate.pdf', 
        plot + plot_layout(ncol = 5, guides = 'collect')&
             theme(legend.position = 'bottom',
                   panel.background = element_blank(),
